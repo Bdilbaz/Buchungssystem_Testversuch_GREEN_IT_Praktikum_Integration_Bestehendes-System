@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meetingraum Buchung</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #F5F5F5;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        header {
+            text-align: center;
+            background-color: #84BD22;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        h1 {
+            margin: 0;
+            color: #fff;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .calendar {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .calendar-day {
+            border: 1px solid #299E8E;
+            border-radius: 5px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            background-color: #84BD22;
+            color: black;
+        }
+        .calendar-day:hover {
+            background-color: #299E8E;
+            color: white;
+        }
+        .booked {
+            background-color: #fff;
+            color: #299E8E;
+        }
+        .room-details {
+            margin-top: 20px;
+            background-color: #f9f9f9;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: left;
+        }
+        .room-details p {
+            margin: 0;
+        }
+        .booking-overview {
+            margin-top: 30px;
+        }
+        .booking-overview table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .booking-overview th, .booking-overview td {
+            padding: 10px;
+            border: 1px solid #299E8E;
+            text-align: left;
+        }
+        .booking-overview th {
+            background-color: #299E8E;
+            color: white;
+        }
+        /* Modal-Stil */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            width: 600px;
+            text-align: center;
+            position: relative;
+        }
+        .close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 20px;
+            cursor: pointer;
+            color: #299E8E;
+        }
+        .btn-group {
+            display: flex;
+            justify-content: space-evenly;
+            margin-top: 20px;
+        }
+        .btn {
+            padding: 10px 20px;
+            background-color: #84BD22;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            flex-grow: 1;
+            margin: 0 5px;
+        }
+        .btn:hover {
+            background-color: #299E8E;
+        }
+        .feedback-popup {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #84BD22;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+            display: none;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Meetingraum 1 - Buchungssystem</h1>
+    </header>
+    <div class="container">
+        <div class="calendar" id="calendar">
+            <!-- Kalender-Tage werden hier dynamisch hinzugefügt -->
+        </div>
+
+        <div class="room-details">
+            <p><strong>Maximale Teilnehmerzahl:</strong> 20</p>
+            <p><strong>Technische Ausstattung:</strong> Beamer, Whiteboard, Video-Konferenzsystem</p>
+            <p><strong>Snacks & Getränke:</strong> Verfügbar</p>
+        </div>
+
+        <!-- Buchungsübersicht -->
+        <div class="booking-overview">
+            <h2>Aktuelle Buchungen</h2>
+            <table id="bookingTable">
+                <thead>
+                    <tr>
+                        <th>Tag</th>
+                        <th>Slot</th>
+                        <th>Name</th>
+                        <th>Abteilung</th>
+                        <th>Teilnehmer</th>
+                        <th>Art</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Buchungen werden hier dynamisch hinzugefügt -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Buchungs-Modal -->
+    <div class="modal" id="bookingModal">
+        <div class="modal-content">
+            <span class="close" id="closeBookingModal">&times;</span>
+            <h3>Buchungsdetails für <span id="selectedDay"></span></h3>
+            <input type="text" id="nameInput" placeholder="Name" required><br>
+            <input type="text" id="departmentInput" placeholder="Abteilung" required><br>
+            <input type="number" id="participantsInput" placeholder="Teilnehmerzahl" required><br>
+            <div class="btn-group">
+                <button class="btn" id="internalBtn">Intern</button>
+                <button class="btn" id="externalBtn">Extern</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="feedback-popup" id="feedbackPopup"></div>
+
+    <script>
+        // Kalender erstellen
+        const calendarElement = document.getElementById('calendar');
+        let selectedDate = null;
+        let currentDate = new Date();
+
+        // Funktion um Tage im Monat zu generieren
+        function generateCalendar() {
+            calendarElement.innerHTML = '';
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+
+            // Erster Tag im Monat
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+
+            // Startposition im Kalender
+            const startDay = firstDay.getDay();
+
+            // Lücken auffüllen
+            for (let i = 0; i < startDay; i++) {
+                const emptyDay = document.createElement('div');
+                calendarElement.appendChild(emptyDay);
+            }
+
+            // Tage hinzufügen
+            for (let day = 1; day <= lastDay.getDate(); day++) {
+                const dayElement = document.createElement('div');
+                dayElement.classList.add('calendar-day');
+                dayElement.textContent = day;
+                dayElement.addEventListener('click', () => openBookingModal(day));
+                calendarElement.appendChild(dayElement);
+            }
+        }
+
+        function openBookingModal(day) {
+            selectedDate = day;
+            document.getElementById('selectedDay').textContent = `Tag ${day}`;
+            document.getElementById('bookingModal').style.display = 'flex';
+        }
+
+        function closeBookingModal() {
+            document.getElementById('bookingModal').style.display = 'none';
+        }
+
+        document.getElementById('closeBookingModal').onclick = closeBookingModal;
+
+        generateCalendar();
+    </script>
+</body>
+</html>
